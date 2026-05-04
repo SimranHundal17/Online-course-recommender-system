@@ -1,0 +1,2 @@
+"""Baseline recommendation model."""
+
