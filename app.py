@@ -138,6 +138,33 @@ def inject_styles() -> None:
             color: #1e3a8a;
             margin: 0.8rem 0;
         }
+
+        .section-kicker {
+            color: var(--blue);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+
+        .soft-panel {
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 1rem;
+            margin: 0.75rem 0;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            text-align: center;
+            font-size: 0.9rem;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -166,6 +193,18 @@ def render_header() -> None:
                 comparing TF-IDF and KNN recommenders, reviewing evaluation results, and
                 demonstrating synthetic learner personas for interface personalization.
             </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_intro(kicker: str, text: str) -> None:
+    st.markdown(
+        f"""
+        <div class="soft-panel">
+            <div class="section-kicker">{kicker}</div>
+            <div>{text}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -378,11 +417,27 @@ def render_recommendation_table(title: str, recommendations: pd.DataFrame) -> No
     if recommendations.empty:
         st.info("No recommendations available.")
         return
-    st.dataframe(recommendations, use_container_width=True, hide_index=True)
+    st.dataframe(
+        recommendations,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "score": st.column_config.NumberColumn("score", format="%.4f"),
+            "distance": st.column_config.NumberColumn("distance", format="%.4f"),
+            "num_subscribers": st.column_config.NumberColumn("num_subscribers", format="%d"),
+            "num_reviews": st.column_config.NumberColumn("num_reviews", format="%d"),
+            "price": st.column_config.NumberColumn("price", format="%d"),
+            "persona_score": st.column_config.NumberColumn("persona_score", format="%d"),
+        },
+    )
 
 
 def project_overview_section() -> None:
     st.header("Project Overview")
+    render_section_intro(
+        "Final Project Dashboard",
+        "This dashboard brings together the processed course dataset, real recommender outputs, evaluation files, exported graphs, and synthetic learner personas.",
+    )
     courses = load_courses()
     if not courses.empty:
         render_dataset_metrics(courses)
@@ -411,6 +466,10 @@ def project_overview_section() -> None:
 
 def course_recommendation_section() -> None:
     st.header("Course Recommendation")
+    render_section_intro(
+        "Live Content-Based Recommendation",
+        "Select any processed course and generate Top-5 recommendations using TF-IDF, KNN, or both models side by side.",
+    )
     courses = load_courses()
     if courses.empty:
         st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
@@ -468,6 +527,10 @@ def course_recommendation_section() -> None:
 
 def algorithm_comparison_section() -> None:
     st.header("Algorithm Comparison")
+    render_section_intro(
+        "Saved Evaluation Examples",
+        "This section uses the generated TF-IDF and KNN recommendation examples that were saved for the evaluation notebook.",
+    )
     examples = load_recommendation_examples()
     if examples.empty:
         st.warning(f"Recommendation examples not found at `{RECOMMENDATION_EXAMPLES_PATH}`.")
@@ -513,6 +576,10 @@ def algorithm_comparison_section() -> None:
 
 def evaluation_results_section() -> None:
     st.header("Evaluation Results")
+    render_section_intro(
+        "Measured Project Outputs",
+        "These tables come from the completed evaluation exports and summarize overlap, runtime, and ablation findings.",
+    )
     overlap = load_csv_if_exists(EVALUATION_DIR / "recommendation_overlap.csv")
     runtime = load_csv_if_exists(EVALUATION_DIR / "runtime_comparison.csv")
     ablation = load_csv_if_exists(EVALUATION_DIR / "ablation_results.csv")
@@ -551,6 +618,10 @@ def evaluation_results_section() -> None:
 
 def synthetic_profiles_section() -> None:
     st.header("Synthetic Learner Profiles")
+    render_section_intro(
+        "Persona Demonstration",
+        "Synthetic personas demonstrate how a future interface could personalize a course discovery experience without using real user histories.",
+    )
     st.markdown(
         """
         <div class="note">
@@ -606,6 +677,10 @@ def synthetic_profiles_section() -> None:
 
 def graphs_section() -> None:
     st.header("Graphs and Results")
+    render_section_intro(
+        "Presentation Assets",
+        "This section displays exported graph files and their summary notes for direct use in the final presentation.",
+    )
     if not GRAPHS_DIR.exists():
         st.warning(f"Graphs directory not found at `{GRAPHS_DIR}`.")
         return
@@ -632,6 +707,10 @@ def graphs_section() -> None:
 
 def limitations_section() -> None:
     st.header("Limitations")
+    render_section_intro(
+        "Responsible Interpretation",
+        "The project uses available metadata and synthetic personas only, so the results should be interpreted as content-based recommendation behavior rather than user-preference learning.",
+    )
     st.markdown(
         """
         - The dataset does not contain real user interaction data.
@@ -667,6 +746,15 @@ def main() -> None:
         graphs_section()
     elif section == "Limitations":
         limitations_section()
+
+    st.markdown(
+        """
+        <div class="footer">
+            Online Course Recommender System | Content-based TF-IDF and KNN project dashboard
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
