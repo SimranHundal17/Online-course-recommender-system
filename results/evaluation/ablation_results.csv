@@ -1,0 +1,4 @@
+experiment,feature_combination,observations
+Experiment A,course_title only,"Already produced relevant recommendations because the test course title contains strong keywords: web, programming, and python."
+Experiment B,course_title + subject,"Kept the same Top-5 recommendation set while improving several similarity scores; subject reinforced web development relevance."
+Experiment C,course_title + subject + level,"Kept recommendations focused on Python and web development while adding useful difficulty context; selected as the best final text representation."

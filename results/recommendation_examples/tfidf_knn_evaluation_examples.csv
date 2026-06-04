@@ -1,0 +1,31 @@
+category,input_course,model,rank,course_title,subject,level,num_subscribers,num_reviews,price,score,distance
+Python-related,web programming with python,TF-IDF,1,python web programming,web development,beginner level,1020,46,100,0.947,
+Python-related,web programming with python,TF-IDF,2,python for beginners python programming language tutorial,web development,beginner level,6153,125,150,0.711,
+Python-related,web programming with python,TF-IDF,3,complete python web course build 8 python web apps,web development,all levels,7489,941,110,0.667,
+Python-related,web programming with python,TF-IDF,4,introduction to qgis python programming,web development,beginner level,197,26,85,0.622,
+Python-related,web programming with python,TF-IDF,5,python programming create an digital marketplace in django,web development,all levels,4198,145,195,0.546,
+Python-related,web programming with python,KNN,1,python web programming,web development,beginner level,1020,46,100,0.7459,0.2541
+Python-related,web programming with python,KNN,2,introduction to qgis python programming,web development,beginner level,197,26,85,0.633,0.367
+Python-related,web programming with python,KNN,3,learn html5 programming from scratch,web development,all levels,268923,8629,0,0.5987,0.4013
+Python-related,web programming with python,KNN,4,python for beginners python programming language tutorial,web development,beginner level,6153,125,150,0.5883,0.4117
+Python-related,web programming with python,KNN,5,coding for entrepreneurs basic,web development,beginner level,161029,279,0,0.5682,0.4318
+Business/Finance,ultimate investment banking course,TF-IDF,1,the complete investment banking course 2017,business finance,all levels,8575,809,195,0.737,
+Business/Finance,ultimate investment banking course,TF-IDF,2,advanced accounting for investment banking,business finance,intermediate level,1260,80,50,0.633,
+Business/Finance,ultimate investment banking course,TF-IDF,3,the investment banking recruitment series,business finance,all levels,17,6,40,0.55,
+Business/Finance,ultimate investment banking course,TF-IDF,4,business banking 101,business finance,all levels,132,3,25,0.521,
+Business/Finance,ultimate investment banking course,TF-IDF,5,intro to investment banking m a ipo modeling + free book,business finance,all levels,1922,149,60,0.445,
+Business/Finance,ultimate investment banking course,KNN,1,the complete investment banking course 2017,business finance,all levels,8575,809,195,0.7552,0.2448
+Business/Finance,ultimate investment banking course,KNN,2,the investment banking recruitment series,business finance,all levels,17,6,40,0.5898,0.4102
+Business/Finance,ultimate investment banking course,KNN,3,advanced accounting for investment banking,business finance,intermediate level,1260,80,50,0.557,0.443
+Business/Finance,ultimate investment banking course,KNN,4,investment banking how to land a job on wall street,business finance,all levels,1218,30,75,0.4697,0.5303
+Business/Finance,ultimate investment banking course,KNN,5,coaching course investment analysis for your clients,business finance,intermediate level,1,0,200,0.4582,0.5418
+Web Development,learn complete web development from scratch,TF-IDF,1,learn responsive web development from scratch,web development,all levels,59639,2692,0,0.746,
+Web Development,learn complete web development from scratch,TF-IDF,2,learn how to become a web developer from scratch,web development,beginner level,7062,72,200,0.662,
+Web Development,learn complete web development from scratch,TF-IDF,3,learn javascript from scratch,web development,beginner level,4193,92,20,0.646,
+Web Development,learn complete web development from scratch,TF-IDF,4,become a web developer from scratch,web development,all levels,69186,2408,120,0.641,
+Web Development,learn complete web development from scratch,TF-IDF,5,learn php from scratch,web development,beginner level,1908,12,25,0.632,
+Web Development,learn complete web development from scratch,KNN,1,backbone tutorial learn backbonejs from scratch,web development,all levels,4957,634,90,0.6239,0.3761
+Web Development,learn complete web development from scratch,KNN,2,learn javascript from scratch become top rated web developer,web development,all levels,2570,17,65,0.6102,0.3898
+Web Development,learn complete web development from scratch,KNN,3,learn wcf and web apis from scratch,web development,intermediate level,5398,358,50,0.604,0.396
+Web Development,learn complete web development from scratch,KNN,4,learn javascript from scratch,web development,beginner level,4193,92,20,0.6038,0.3962
+Web Development,learn complete web development from scratch,KNN,5,learn how to become a web developer from scratch,web development,beginner level,7062,72,200,0.5919,0.4081
