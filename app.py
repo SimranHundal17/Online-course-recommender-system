@@ -24,6 +24,8 @@ PROCESSED_COURSES_PATH = ROOT / "data" / "processed" / "processed_udemy_courses.
 RECOMMENDATION_EXAMPLES_PATH = (
     ROOT / "results" / "recommendation_examples" / "tfidf_knn_evaluation_examples.csv"
 )
+EVALUATION_DIR = ROOT / "results" / "evaluation"
+GRAPHS_DIR = ROOT / "results" / "graphs"
 
 
 SECTIONS = [
@@ -181,6 +183,20 @@ def load_recommendation_examples() -> pd.DataFrame:
     if not RECOMMENDATION_EXAMPLES_PATH.exists():
         return pd.DataFrame()
     return pd.read_csv(RECOMMENDATION_EXAMPLES_PATH)
+
+
+@st.cache_data
+def load_csv_if_exists(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+@st.cache_data
+def load_text_if_exists(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
 
 
 def format_number(value: int | float) -> str:
@@ -435,7 +451,40 @@ def algorithm_comparison_section() -> None:
 
 def evaluation_results_section() -> None:
     st.header("Evaluation Results")
-    st.info("Stage 1 layout placeholder. Evaluation CSV files and graphs will be connected in later stages.")
+    overlap = load_csv_if_exists(EVALUATION_DIR / "recommendation_overlap.csv")
+    runtime = load_csv_if_exists(EVALUATION_DIR / "runtime_comparison.csv")
+    ablation = load_csv_if_exists(EVALUATION_DIR / "ablation_results.csv")
+    summary = load_text_if_exists(EVALUATION_DIR / "evaluation_summary.md")
+
+    st.markdown("Evaluation is based on the completed notebook results and exported CSV files.")
+
+    tab_overlap, tab_runtime, tab_ablation, tab_summary = st.tabs(
+        ["Overlap", "Runtime", "Ablation", "Summary"]
+    )
+    with tab_overlap:
+        st.subheader("Recommendation Overlap")
+        if overlap.empty:
+            st.warning("Overlap results are not available.")
+        else:
+            st.dataframe(overlap, use_container_width=True, hide_index=True)
+    with tab_runtime:
+        st.subheader("Runtime Comparison")
+        if runtime.empty:
+            st.warning("Runtime results are not available.")
+        else:
+            st.dataframe(runtime, use_container_width=True, hide_index=True)
+    with tab_ablation:
+        st.subheader("Ablation Study")
+        if ablation.empty:
+            st.warning("Ablation results are not available.")
+        else:
+            st.dataframe(ablation, use_container_width=True, hide_index=True)
+    with tab_summary:
+        st.subheader("Evaluation Summary")
+        if summary:
+            st.markdown(summary)
+        else:
+            st.warning("Evaluation summary is not available.")
 
 
 def synthetic_profiles_section() -> None:
@@ -453,7 +502,28 @@ def synthetic_profiles_section() -> None:
 
 def graphs_section() -> None:
     st.header("Graphs and Results")
-    st.info("Stage 1 layout placeholder. Exported graph files and summaries will be connected in later stages.")
+    if not GRAPHS_DIR.exists():
+        st.warning(f"Graphs directory not found at `{GRAPHS_DIR}`.")
+        return
+
+    graph_files = sorted(GRAPHS_DIR.glob("*.png"))
+    if not graph_files:
+        st.info("No graph images are currently available.")
+    else:
+        st.markdown("These visuals come from the project notebooks and evaluation results.")
+        for index in range(0, len(graph_files), 2):
+            cols = st.columns(2)
+            for col, graph_path in zip(cols, graph_files[index : index + 2]):
+                with col:
+                    title = graph_path.stem.replace("_", " ").title()
+                    st.subheader(title)
+                    st.image(str(graph_path), use_container_width=True)
+
+    graph_summary = load_text_if_exists(GRAPHS_DIR / "graph_summary.md")
+    if graph_summary:
+        st.divider()
+        st.subheader("Graph Summary")
+        st.markdown(graph_summary)
 
 
 def limitations_section() -> None:
