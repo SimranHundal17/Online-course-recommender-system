@@ -277,11 +277,30 @@ def render_course_details(course: pd.Series) -> None:
     )
 
 
+def resolve_course_selection(courses: pd.DataFrame, title: str) -> tuple[int, str, bool]:
+    query = str(title).strip().lower()
+    if not query:
+        raise ValueError("Please enter or select a course title before generating recommendations.")
+
+    normalized_titles = courses["course_title"].fillna("").str.lower()
+    exact_matches = courses.index[normalized_titles == query].tolist()
+    if exact_matches:
+        index = exact_matches[0]
+        return index, str(courses.loc[index, "course_title"]), False
+
+    partial_matches = courses.index[
+        normalized_titles.str.contains(query, regex=False, na=False)
+    ].tolist()
+    if partial_matches:
+        index = partial_matches[0]
+        return index, str(courses.loc[index, "course_title"]), True
+
+    raise ValueError(f"No course title matched: {title}")
+
+
 def get_course_index(courses: pd.DataFrame, title: str) -> int:
-    matches = courses.index[courses["course_title"] == title].tolist()
-    if not matches:
-        raise ValueError(f"Course not found: {title}")
-    return matches[0]
+    index, _, _ = resolve_course_selection(courses, title)
+    return index
 
 
 @st.cache_resource
@@ -306,9 +325,9 @@ def build_knn_recommender(courses: pd.DataFrame):
     if numeric_features:
         scaler = StandardScaler()
         numeric_matrix = scaler.fit_transform(courses[numeric_features].fillna(0))
-        feature_matrix = hstack([text_matrix, numeric_matrix * 0.2])
+        feature_matrix = hstack([text_matrix, numeric_matrix * 0.2]).tocsr()
     else:
-        feature_matrix = text_matrix
+        feature_matrix = text_matrix.tocsr()
 
     model = NearestNeighbors(n_neighbors=6, metric="cosine", algorithm="brute")
     model.fit(feature_matrix)
@@ -417,13 +436,18 @@ def render_recommendation_table(title: str, recommendations: pd.DataFrame) -> No
     if recommendations.empty:
         st.info("No recommendations available.")
         return
+    score_label = (
+        "KNN similarity score (1 - cosine distance)"
+        if "knn" in title.lower()
+        else "Similarity score"
+    )
     st.dataframe(
         recommendations,
         use_container_width=True,
         hide_index=True,
         column_config={
-            "score": st.column_config.NumberColumn("score", format="%.4f"),
-            "distance": st.column_config.NumberColumn("distance", format="%.4f"),
+            "score": st.column_config.NumberColumn(score_label, format="%.4f"),
+            "distance": st.column_config.NumberColumn("Cosine distance", format="%.4f"),
             "num_subscribers": st.column_config.NumberColumn("num_subscribers", format="%d"),
             "num_reviews": st.column_config.NumberColumn("num_reviews", format="%d"),
             "price": st.column_config.NumberColumn("price", format="%d"),
@@ -483,12 +507,33 @@ def course_recommendation_section() -> None:
         courses["course_title"].sort_values().tolist(),
         index=0,
     )
+    course_query = st.text_input(
+        "Course title search",
+        value=selected_title,
+        help="You can use an exact title or a partial title.",
+    )
+    st.caption(
+        "If multiple courses share the same title, the system uses the first matching course entry."
+    )
     algorithm = st.radio(
         "Recommendation method",
         ["TF-IDF", "KNN", "Compare Both"],
         horizontal=True,
     )
-    selected_course = courses[courses["course_title"] == selected_title].iloc[0]
+
+    try:
+        selected_index, matched_title, partial_match = resolve_course_selection(
+            courses, course_query
+        )
+    except ValueError as error:
+        st.warning(str(error))
+        return
+
+    selected_course = courses.loc[selected_index]
+    if partial_match:
+        st.info(f"Partial title matched: {matched_title}")
+    else:
+        st.caption(f"Matched course title: {matched_title}")
 
     left, right = st.columns([1, 1])
     with left:
@@ -499,29 +544,30 @@ def course_recommendation_section() -> None:
         st.write("Recommendations are generated from the processed dataset using the project models.")
         st.write("**TF-IDF:** text similarity from `combined_features`.")
         st.write("**KNN:** text similarity plus scaled numeric metadata.")
+        st.write("KNN scores are shown as `1 - cosine distance`.")
 
     st.divider()
     if algorithm == "TF-IDF":
         render_recommendation_table(
             "Top 5 TF-IDF Recommendations",
-            tfidf_recommendations(courses, selected_title, n=5),
+            tfidf_recommendations(courses, matched_title, n=5),
         )
     elif algorithm == "KNN":
         render_recommendation_table(
             "Top 5 KNN Recommendations",
-            knn_recommendations(courses, selected_title, n=5),
+            knn_recommendations(courses, matched_title, n=5),
         )
     else:
         tfidf_col, knn_col = st.columns(2)
         with tfidf_col:
             render_recommendation_table(
                 "TF-IDF Recommendations",
-                tfidf_recommendations(courses, selected_title, n=5),
+                tfidf_recommendations(courses, matched_title, n=5),
             )
         with knn_col:
             render_recommendation_table(
                 "KNN Recommendations",
-                knn_recommendations(courses, selected_title, n=5),
+                knn_recommendations(courses, matched_title, n=5),
             )
 
 
@@ -556,6 +602,7 @@ def algorithm_comparison_section() -> None:
         st.dataframe(tfidf_rows, use_container_width=True, hide_index=True)
     with right:
         st.subheader("KNN Recommendations")
+        st.caption("KNN similarity score is calculated as `1 - cosine distance`.")
         st.dataframe(knn_rows, use_container_width=True, hide_index=True)
 
     tfidf_titles = set(tfidf_rows["course_title"])
@@ -602,6 +649,9 @@ def evaluation_results_section() -> None:
             st.warning("Runtime results are not available.")
         else:
             st.dataframe(runtime, use_container_width=True, hide_index=True)
+            st.caption(
+                "Runtime values are environment-dependent and mainly used for relative comparison."
+            )
     with tab_ablation:
         st.subheader("Ablation Study")
         if ablation.empty:
@@ -648,10 +698,16 @@ def synthetic_profiles_section() -> None:
     left, right = st.columns([0.9, 1.2])
     with left:
         st.subheader("Persona Details")
+        persona_name = str(persona["persona_name"])
+        display_persona_name = (
+            "Photography / Photo Editing"
+            if persona_name.lower() == "photographer"
+            else persona_name
+        )
         st.markdown(
             f"""
             <div class="card">
-                <h3>{persona["persona_name"]}</h3>
+                <h3>{display_persona_name}</h3>
                 <span class="badge">{persona["preferred_subject"]}</span>
                 <span class="badge">{persona["preferred_level"]}</span>
                 <p><strong>Interests:</strong> {persona["interests"]}</p>
@@ -659,6 +715,10 @@ def synthetic_profiles_section() -> None:
             """,
             unsafe_allow_html=True,
         )
+        if persona_name.lower() == "photographer":
+            st.caption(
+                "This dataset mainly contains Photoshop, photo-editing, and graphic-design related courses rather than pure photography titles."
+            )
     with right:
         st.subheader("Simple Matching Method")
         st.write(
