@@ -26,6 +26,7 @@ RECOMMENDATION_EXAMPLES_PATH = (
 )
 EVALUATION_DIR = ROOT / "results" / "evaluation"
 GRAPHS_DIR = ROOT / "results" / "graphs"
+SYNTHETIC_USERS_PATH = ROOT / "data" / "synthetic_users.csv"
 
 
 SECTIONS = [
@@ -193,6 +194,11 @@ def load_csv_if_exists(path: Path) -> pd.DataFrame:
 
 
 @st.cache_data
+def load_synthetic_users() -> pd.DataFrame:
+    return load_csv_if_exists(SYNTHETIC_USERS_PATH)
+
+
+@st.cache_data
 def load_text_if_exists(path: Path) -> str:
     if not path.exists():
         return ""
@@ -309,6 +315,62 @@ def knn_recommendations(courses: pd.DataFrame, selected_title: str, n: int = 5) 
     if not result.empty:
         result.insert(0, "rank", range(1, len(result) + 1))
     return result
+
+
+def persona_recommendations(courses: pd.DataFrame, persona: pd.Series, n: int = 5) -> pd.DataFrame:
+    interests = str(persona["interests"]).lower()
+    interest_terms = [
+        token.strip()
+        for phrase in interests.split(";")
+        for token in phrase.split()
+        if len(token.strip()) > 2
+    ]
+    preferred_subject = str(persona["preferred_subject"]).lower()
+    preferred_level = str(persona["preferred_level"]).lower()
+
+    scored = courses.copy()
+    text = (
+        scored["course_title"].fillna("")
+        + " "
+        + scored["subject"].fillna("")
+        + " "
+        + scored["level"].fillna("")
+        + " "
+        + scored["combined_features"].fillna("")
+    ).str.lower()
+
+    scored["interest_matches"] = text.apply(
+        lambda value: sum(1 for term in interest_terms if term in value)
+    )
+    scored["subject_match"] = (
+        scored["subject"].fillna("").str.lower() == preferred_subject
+    ).astype(int)
+    scored["level_match"] = (
+        scored["level"].fillna("").str.lower() == preferred_level
+    ).astype(int)
+    scored["persona_score"] = (
+        scored["interest_matches"]
+        + scored["subject_match"] * 2
+        + scored["level_match"]
+    )
+
+    result = scored.sort_values(
+        ["persona_score", "interest_matches", "num_subscribers"],
+        ascending=[False, False, False],
+    ).head(n)
+    result = result[
+        [
+            "course_title",
+            "subject",
+            "level",
+            "num_subscribers",
+            "num_reviews",
+            "price",
+            "persona_score",
+        ]
+    ].copy()
+    result.insert(0, "rank", range(1, len(result) + 1))
+    return result.reset_index(drop=True)
 
 
 def render_recommendation_table(title: str, recommendations: pd.DataFrame) -> None:
@@ -497,7 +559,49 @@ def synthetic_profiles_section() -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.info("Stage 1 layout placeholder. Synthetic persona data will be connected in later stages.")
+    personas = load_synthetic_users()
+    courses = load_courses()
+    if personas.empty:
+        st.warning(f"Synthetic persona file not found at `{SYNTHETIC_USERS_PATH}`.")
+        return
+    if courses.empty:
+        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
+        return
+
+    selected_persona_name = st.selectbox(
+        "Select a learner persona",
+        personas["persona_name"].tolist(),
+    )
+    persona = personas[personas["persona_name"] == selected_persona_name].iloc[0]
+
+    left, right = st.columns([0.9, 1.2])
+    with left:
+        st.subheader("Persona Details")
+        st.markdown(
+            f"""
+            <div class="card">
+                <h3>{persona["persona_name"]}</h3>
+                <span class="badge">{persona["preferred_subject"]}</span>
+                <span class="badge">{persona["preferred_level"]}</span>
+                <p><strong>Interests:</strong> {persona["interests"]}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.subheader("Simple Matching Method")
+        st.write(
+            "The demo ranks courses by matching persona interests with course titles, subjects, levels, and combined features."
+        )
+        st.write(
+            "These are synthetic learner profiles for demonstration only. This is not collaborative filtering."
+        )
+
+    st.divider()
+    render_recommendation_table(
+        "Persona-Based Content Recommendations",
+        persona_recommendations(courses, persona, n=5),
+    )
 
 
 def graphs_section() -> None:
