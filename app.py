@@ -21,6 +21,9 @@ st.set_page_config(
 
 ROOT = Path(__file__).resolve().parent
 PROCESSED_COURSES_PATH = ROOT / "data" / "processed" / "processed_udemy_courses.csv"
+RECOMMENDATION_EXAMPLES_PATH = (
+    ROOT / "results" / "recommendation_examples" / "tfidf_knn_evaluation_examples.csv"
+)
 
 
 SECTIONS = [
@@ -171,6 +174,13 @@ def load_courses() -> pd.DataFrame:
     if not PROCESSED_COURSES_PATH.exists():
         return pd.DataFrame()
     return pd.read_csv(PROCESSED_COURSES_PATH)
+
+
+@st.cache_data
+def load_recommendation_examples() -> pd.DataFrame:
+    if not RECOMMENDATION_EXAMPLES_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(RECOMMENDATION_EXAMPLES_PATH)
 
 
 def format_number(value: int | float) -> str:
@@ -380,7 +390,47 @@ def course_recommendation_section() -> None:
 
 def algorithm_comparison_section() -> None:
     st.header("Algorithm Comparison")
-    st.info("Stage 1 layout placeholder. Saved TF-IDF vs KNN example results will be connected in later stages.")
+    examples = load_recommendation_examples()
+    if examples.empty:
+        st.warning(f"Recommendation examples not found at `{RECOMMENDATION_EXAMPLES_PATH}`.")
+        return
+
+    st.markdown(
+        "This section uses the saved comparison outputs generated for the evaluation notebook."
+    )
+    category = st.selectbox(
+        "Evaluation example",
+        examples["category"].drop_duplicates().tolist(),
+    )
+    subset = examples[examples["category"] == category].copy()
+    input_course = subset["input_course"].iloc[0]
+    st.markdown(f"**Input course:** `{input_course}`")
+
+    tfidf_rows = subset[subset["model"] == "TF-IDF"].drop(columns=["category", "input_course"])
+    knn_rows = subset[subset["model"] == "KNN"].drop(columns=["category", "input_course"])
+
+    left, right = st.columns(2)
+    with left:
+        st.subheader("TF-IDF Recommendations")
+        st.dataframe(tfidf_rows, use_container_width=True, hide_index=True)
+    with right:
+        st.subheader("KNN Recommendations")
+        st.dataframe(knn_rows, use_container_width=True, hide_index=True)
+
+    tfidf_titles = set(tfidf_rows["course_title"])
+    knn_titles = set(knn_rows["course_title"])
+    common_titles = sorted(tfidf_titles.intersection(knn_titles))
+    overlap = len(common_titles) / 5 * 100
+
+    st.subheader("Overlap Discussion")
+    st.metric("Common Recommendations", f"{len(common_titles)} / 5", f"{overlap:.0f}% overlap")
+    if common_titles:
+        st.write("**Shared recommendations:**")
+        for title in common_titles:
+            st.write(f"- {title}")
+    st.write(
+        "Higher overlap means both algorithms agree on similar courses. Lower overlap can indicate that KNN is introducing more varied alternatives because it also uses numeric metadata."
+    )
 
 
 def evaluation_results_section() -> None:
