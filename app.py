@@ -15,6 +15,7 @@ st.set_page_config(
 
 
 ROOT = Path(__file__).resolve().parent
+PROCESSED_COURSES_PATH = ROOT / "data" / "processed" / "processed_udemy_courses.csv"
 
 
 SECTIONS = [
@@ -160,8 +161,65 @@ def render_header() -> None:
     )
 
 
+@st.cache_data
+def load_courses() -> pd.DataFrame:
+    if not PROCESSED_COURSES_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(PROCESSED_COURSES_PATH)
+
+
+def format_number(value: int | float) -> str:
+    return f"{int(value):,}"
+
+
+def render_dataset_metrics(courses: pd.DataFrame) -> None:
+    subjects = courses["subject"].nunique() if "subject" in courses else 0
+    levels = courses["level"].nunique() if "level" in courses else 0
+    cols = st.columns(4)
+    cols[0].metric("Courses", format_number(len(courses)))
+    cols[1].metric("Subjects", subjects)
+    cols[2].metric("Course Levels", levels)
+    cols[3].metric("Feature Columns", len(courses.columns))
+
+
+def render_course_details(course: pd.Series) -> None:
+    st.markdown(
+        f"""
+        <div class="card">
+            <h3>{course["course_title"]}</h3>
+            <span class="badge">{course["subject"]}</span>
+            <span class="badge">{course["level"]}</span>
+            <span class="badge">{format_number(course["num_subscribers"])} subscribers</span>
+            <span class="badge">{format_number(course["num_reviews"])} reviews</span>
+            <p>
+                <strong>Price:</strong> {course["price"]} |
+                <strong>Duration:</strong> {course["content_duration"]} hours
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def project_overview_section() -> None:
     st.header("Project Overview")
+    courses = load_courses()
+    if not courses.empty:
+        render_dataset_metrics(courses)
+        st.subheader("Available Dataset Coverage")
+        subject_badges = " ".join(
+            f'<span class="badge">{subject}</span>'
+            for subject in sorted(courses["subject"].dropna().unique())
+        )
+        level_badges = " ".join(
+            f'<span class="badge">{level}</span>'
+            for level in sorted(courses["level"].dropna().unique())
+        )
+        st.markdown(f"**Subjects:**<br>{subject_badges}", unsafe_allow_html=True)
+        st.markdown(f"**Levels:**<br>{level_badges}", unsafe_allow_html=True)
+    else:
+        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
+
     cols = st.columns(3)
     with cols[0]:
         render_card("Recommendation Goal", "Suggest relevant Udemy-style courses using course metadata and content similarity.")
@@ -173,7 +231,32 @@ def project_overview_section() -> None:
 
 def course_recommendation_section() -> None:
     st.header("Course Recommendation")
-    st.info("Stage 1 layout placeholder. Real processed course data and recommender logic will be integrated in later stages.")
+    courses = load_courses()
+    if courses.empty:
+        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
+        return
+
+    render_dataset_metrics(courses)
+
+    st.subheader("Select a Course")
+    selected_title = st.selectbox(
+        "Course title",
+        courses["course_title"].sort_values().tolist(),
+        index=0,
+    )
+    selected_course = courses[courses["course_title"] == selected_title].iloc[0]
+
+    left, right = st.columns([1, 1])
+    with left:
+        st.subheader("Selected Course Details")
+        render_course_details(selected_course)
+    with right:
+        st.subheader("Dataset Filters Available")
+        st.write("These filters will be used with recommendation logic in the next stage.")
+        st.write("**Available subjects:**")
+        st.write(", ".join(sorted(courses["subject"].dropna().unique())))
+        st.write("**Available levels:**")
+        st.write(", ".join(sorted(courses["level"].dropna().unique())))
 
 
 def algorithm_comparison_section() -> None:
