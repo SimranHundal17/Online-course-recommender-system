@@ -4,6 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from scipy.sparse import hstack
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
 
 
 st.set_page_config(
@@ -201,6 +206,93 @@ def render_course_details(course: pd.Series) -> None:
     )
 
 
+def get_course_index(courses: pd.DataFrame, title: str) -> int:
+    matches = courses.index[courses["course_title"] == title].tolist()
+    if not matches:
+        raise ValueError(f"Course not found: {title}")
+    return matches[0]
+
+
+@st.cache_resource
+def build_tfidf_recommender(courses: pd.DataFrame):
+    vectorizer = TfidfVectorizer(stop_words="english")
+    tfidf_matrix = vectorizer.fit_transform(courses["combined_features"].fillna(""))
+    similarity_matrix = cosine_similarity(tfidf_matrix, tfidf_matrix)
+    return vectorizer, tfidf_matrix, similarity_matrix
+
+
+@st.cache_resource
+def build_knn_recommender(courses: pd.DataFrame):
+    vectorizer = TfidfVectorizer(stop_words="english", max_features=1000)
+    text_matrix = vectorizer.fit_transform(courses["combined_features"].fillna(""))
+
+    numeric_features = [
+        column
+        for column in ["num_subscribers", "num_reviews", "price", "content_duration"]
+        if column in courses.columns
+    ]
+
+    if numeric_features:
+        scaler = StandardScaler()
+        numeric_matrix = scaler.fit_transform(courses[numeric_features].fillna(0))
+        feature_matrix = hstack([text_matrix, numeric_matrix * 0.2])
+    else:
+        feature_matrix = text_matrix
+
+    model = NearestNeighbors(n_neighbors=6, metric="cosine", algorithm="brute")
+    model.fit(feature_matrix)
+    return model, feature_matrix
+
+
+def tfidf_recommendations(courses: pd.DataFrame, selected_title: str, n: int = 5) -> pd.DataFrame:
+    _, _, similarity_matrix = build_tfidf_recommender(courses)
+    selected_index = get_course_index(courses, selected_title)
+    scores = list(enumerate(similarity_matrix[selected_index]))
+    scores = sorted(scores, key=lambda item: item[1], reverse=True)
+    scores = [item for item in scores if item[0] != selected_index][:n]
+
+    result = courses.loc[
+        [index for index, _ in scores],
+        ["course_title", "subject", "level", "num_subscribers", "num_reviews", "price"],
+    ].copy()
+    result.insert(0, "rank", range(1, len(result) + 1))
+    result["score"] = [round(float(score), 4) for _, score in scores]
+    return result.reset_index(drop=True)
+
+
+def knn_recommendations(courses: pd.DataFrame, selected_title: str, n: int = 5) -> pd.DataFrame:
+    model, feature_matrix = build_knn_recommender(courses)
+    selected_index = get_course_index(courses, selected_title)
+    distances, indices = model.kneighbors(
+        feature_matrix[selected_index],
+        n_neighbors=n + 1,
+    )
+
+    rows = []
+    for distance, index in zip(distances[0], indices[0]):
+        if index == selected_index:
+            continue
+        row = courses.loc[index, ["course_title", "subject", "level", "num_subscribers", "num_reviews", "price"]].to_dict()
+        row["distance"] = round(float(distance), 4)
+        row["score"] = round(1 - float(distance), 4)
+        rows.append(row)
+        if len(rows) == n:
+            break
+
+    result = pd.DataFrame(rows)
+    if not result.empty:
+        result.insert(0, "rank", range(1, len(result) + 1))
+    return result
+
+
+def render_recommendation_table(title: str, recommendations: pd.DataFrame) -> None:
+    st.subheader(title)
+    if recommendations.empty:
+        st.info("No recommendations available.")
+        return
+    st.dataframe(recommendations, use_container_width=True, hide_index=True)
+
+
 def project_overview_section() -> None:
     st.header("Project Overview")
     courses = load_courses()
@@ -244,6 +336,11 @@ def course_recommendation_section() -> None:
         courses["course_title"].sort_values().tolist(),
         index=0,
     )
+    algorithm = st.radio(
+        "Recommendation method",
+        ["TF-IDF", "KNN", "Compare Both"],
+        horizontal=True,
+    )
     selected_course = courses[courses["course_title"] == selected_title].iloc[0]
 
     left, right = st.columns([1, 1])
@@ -251,12 +348,34 @@ def course_recommendation_section() -> None:
         st.subheader("Selected Course Details")
         render_course_details(selected_course)
     with right:
-        st.subheader("Dataset Filters Available")
-        st.write("These filters will be used with recommendation logic in the next stage.")
-        st.write("**Available subjects:**")
-        st.write(", ".join(sorted(courses["subject"].dropna().unique())))
-        st.write("**Available levels:**")
-        st.write(", ".join(sorted(courses["level"].dropna().unique())))
+        st.subheader("Recommendation Setup")
+        st.write("Recommendations are generated from the processed dataset using the project models.")
+        st.write("**TF-IDF:** text similarity from `combined_features`.")
+        st.write("**KNN:** text similarity plus scaled numeric metadata.")
+
+    st.divider()
+    if algorithm == "TF-IDF":
+        render_recommendation_table(
+            "Top 5 TF-IDF Recommendations",
+            tfidf_recommendations(courses, selected_title, n=5),
+        )
+    elif algorithm == "KNN":
+        render_recommendation_table(
+            "Top 5 KNN Recommendations",
+            knn_recommendations(courses, selected_title, n=5),
+        )
+    else:
+        tfidf_col, knn_col = st.columns(2)
+        with tfidf_col:
+            render_recommendation_table(
+                "TF-IDF Recommendations",
+                tfidf_recommendations(courses, selected_title, n=5),
+            )
+        with knn_col:
+            render_recommendation_table(
+                "KNN Recommendations",
+                knn_recommendations(courses, selected_title, n=5),
+            )
 
 
 def algorithm_comparison_section() -> None:
