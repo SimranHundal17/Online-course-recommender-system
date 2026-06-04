@@ -1,0 +1,3 @@
+model,recommendation_generation_time,notes
+TF-IDF + Cosine Similarity,0.001245,Average recommendation generation time over 100 runs for test course "web programming with python".
+KNN Recommender,0.028309,Average recommendation generation time over 100 runs for test course "web programming with python".

@@ -1,0 +1,9 @@
+user_id,persona_name,interests,preferred_level,preferred_subject
+U001,Beginner Python Learner,"python programming; web programming; django; beginner coding",beginner level,web development
+U002,Data Science Learner,"python; data analysis; machine learning; statistics; financial modeling",intermediate level,business finance
+U003,Business / Finance Professional,"investment banking; financial analysis; trading; accounting; excel",all levels,business finance
+U004,Web Developer,"html; css; javascript; web development; wordpress; bootstrap",all levels,web development
+U005,Photographer,"photoshop; photo editing; lightroom; digital photography; image editing",beginner level,graphic design
+U006,Music Learner,"guitar; piano; music theory; blues guitar; playing music",beginner level,musical instruments
+U007,Graphic Design Learner,"graphic design; photoshop; logo design; web design; illustrator",beginner level,graphic design
+U008,Entrepreneur,"entrepreneurship; online business; marketing; startup; business strategy",all levels,business finance
