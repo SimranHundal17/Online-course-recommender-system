@@ -1,7 +1,7 @@
 ---
 title: "Online Course Recommender System"
 subtitle: "TF-IDF, KNN, Evaluation, and Dashboard Report"
-author: "University Recommender Systems Project"
+author: "Simranpreet Kaur Hundal, Sergei Kanygin"
 format:
   pdf:
     toc: true
@@ -14,19 +14,25 @@ format:
       - margin=0.68in
     include-in-header:
       text: |
+        \KOMAoption{titlepage}{true}
         \setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
         \setlength{\floatsep}{6pt plus 2pt minus 2pt}
         \setlength{\intextsep}{6pt plus 2pt minus 2pt}
         \setlength{\abovecaptionskip}{4pt}
         \setlength{\belowcaptionskip}{2pt}
         \linespread{0.96}
-        \RedeclareSectionCommand[beforeskip=.75\baselineskip,afterskip=.35\baselineskip]{section}
-        \RedeclareSectionCommand[beforeskip=.55\baselineskip,afterskip=.25\baselineskip]{subsection}
+        \clubpenalty=10000
+        \widowpenalty=10000
+        \displaywidowpenalty=10000
+        \RedeclareSectionCommand[beforeskip=1.0\baselineskip,afterskip=.42\baselineskip]{section}
+        \RedeclareSectionCommand[beforeskip=.72\baselineskip,afterskip=.32\baselineskip]{subsection}
 execute:
   echo: false
   warning: false
   message: false
 ---
+
+\clearpage
 
 # Abstract
 
@@ -68,7 +74,7 @@ The main objectives were:
 - create synthetic learner profiles for interface demonstration only;
 - present the final system in a Streamlit dashboard.
 
-The final application does not implement collaborative filtering. Synthetic users are used only to demonstrate how learner profiles could appear in a user interface.
+The final application does not implement collaborative filtering. Synthetic learner profiles are used only to demonstrate how learner profiles could appear in a user interface.
 
 ## Project Contribution and Unique Selling Proposition
 
@@ -228,6 +234,8 @@ The TF-IDF computation can be summarized as:
 
 This model is the baseline recommendation model for the project. It is simple, interpretable, and works without user interaction data.
 
+In the implementation, the text column is passed to scikit-learn's `TfidfVectorizer`, and `cosine_similarity` is used to create the similarity matrix. The recommender function then uses the selected course's index to read the corresponding similarity row, rank the other courses, and display the highest-scoring course records.
+
 ## Reason for Using TF-IDF
 
 TF-IDF was selected because it fits the structure of the dataset. Course titles and metadata contain meaningful words, and the project needed a method that could compare courses without ratings or learner histories. It also provides recommendations that are relatively easy to explain: if two courses share distinctive terms, their similarity score increases.
@@ -263,6 +271,8 @@ The KNN computation can be summarized as:
 7. return the top five recommendations.
 
 KNN is useful because it can include more than text. However, it is more computationally expensive during recommendation generation than the TF-IDF similarity lookup used in this project.
+
+In the implementation, `TfidfVectorizer` first creates the text feature matrix, while `StandardScaler` scales the numeric columns so that subscribers, reviews, price, and duration can be compared on a common scale. These features are combined into one matrix, and scikit-learn's `NearestNeighbors` model retrieves the closest courses using cosine distance.
 
 ## Reason for Using KNN
 
@@ -345,11 +355,13 @@ The three experiments were:
 
 ![Ablation study comparison.](figures/ablation_study_comparison.png){#fig-ablation width=72%}
 
+\clearpage
+
 The ablation study shows that course title is the strongest text feature for this example because it contains distinctive words. In the test course `web programming with python`, the words "web", "programming", and "python" already provide strong signals, so title-only recommendations were still relevant.
 
 Adding subject improved category relevance by reinforcing that the course belongs to Web Development. Adding level added difficulty context, which is helpful when two courses are similar in topic but intended for different learners. The final recommended feature combination is `course_title + subject + level`, consistent with the use of `combined_features` in the project.
 
-# Synthetic Users
+# Synthetic Learner Profiles
 
 The project includes `data/synthetic_users.csv`, which contains eight synthetic learner personas:
 
@@ -362,33 +374,25 @@ The project includes `data/synthetic_users.csv`, which contains eight synthetic 
 7. Graphic Design Learner
 8. Entrepreneur
 
-These profiles are not real users. They are not used for collaborative filtering. They are only sample learner profiles for demonstrating personalization in the dashboard interface.
+These profiles are not real users. They are not used for collaborative filtering. They are only sample learner profiles for demonstrating possible personalization in the dashboard interface.
 
 The persona recommendation mode uses simple content matching between persona interests and course fields such as title, subject, level, and `combined_features`. For the photography persona, the dashboard labels the area as "Photography / Photo Editing" because the dataset mainly contains Photoshop, photo-editing, and graphic-design related courses rather than pure photography course titles.
 
 # Dashboard
 
-The final Streamlit dashboard is implemented in `app.py`. It provides a presentation-ready interface for exploring the project outputs.
+The final Streamlit interface is implemented in `app.py`. It is designed as a recommender demonstration rather than a report viewer, so the main purpose is to let a user interact with the recommendation system directly.
 
-The dashboard includes six main pages. Together, they turn the notebooks and result files into an interface that can be demonstrated without manually opening each artifact.
+![Dashboard home page.](figures/dashboard_home_page.png){#fig-dashboard width=92%}
 
-![Temporary placeholder for the Streamlit dashboard project overview page.](figures/dashboard_project_overview_placeholder.png){#fig-dashboard width=88%}
+The **Home** page introduces the demo and shows compact dataset statistics, including the number of processed courses, course subjects, and difficulty levels. This gives the user enough context before using the recommender without repeating the full project report.
 
-The **Project Overview** page summarizes the purpose of the system, the dataset size, and the main components of the workflow. It gives a quick entry point for someone who has not read the notebooks.
+The **Course Recommender** page is the main interactive page. A user can search for or select a real Udemy course title, choose TF-IDF, KNN, or both algorithms, set the number of recommendations, and generate ranked course cards. Each card displays the course title, subject, level, subscribers, reviews, price, duration, and the relevant similarity score.
 
-The **Course Recommendation** page is the main interactive part of the dashboard. A user can select or type a course title and generate top-five recommendations using TF-IDF, KNN, or both models side by side. This page demonstrates the actual recommendation behavior of the system.
+The **Learner Profiles** page demonstrates possible personalization using the synthetic learner personas. A user selects a profile and generates recommendations based on profile interests, preferred subject, and preferred level. The interface clearly states that these profiles are synthetic and are not used for collaborative filtering.
 
-The **Algorithm Comparison** page uses saved recommendation examples from the evaluation notebook. It compares TF-IDF and KNN outputs for representative input courses and shows where the two methods agree.
+The **About This Demo** page explains how recommendations are produced. It uses visual workflow blocks to show how TF-IDF forms text vectors and cosine similarity scores, how KNN combines text features with scaled numeric metadata, and how learner profile scores are calculated. It also includes an interactive feature ablation demonstration where a selected course can be compared using title only, title plus subject, and title plus subject plus level.
 
-The **Evaluation Results** page presents the exported overlap, runtime, ablation, and summary results. This helps connect the dashboard demonstration to the project evaluation rather than showing recommendations without evidence.
-
-The **Synthetic Learner Profiles** page uses the synthetic personas to demonstrate how a future learning platform could present profile-based course discovery. These profiles are not real user histories and are not used for collaborative filtering.
-
-The **Graphs and Results** page displays the exported graphs from the notebooks, including dataset distributions and evaluation visuals. This page makes the visual results easier to browse during presentation.
-
-The app uses real project files where available. The processed course catalog supplies the recommendation input, the synthetic user file supports the persona demonstration, the saved recommendation examples support the algorithm comparison page, and the exported evaluation and graph folders provide the tables and figures shown in the dashboard.
-
-The dashboard also handles important input cases. It supports exact and partial course title matching, strips whitespace, lowercases input, warns on empty input, and explains that duplicate titles use the first matching course entry. The KNN sparse matrix is converted to CSR format so that row indexing works correctly during recommendation generation.
+The dashboard uses the processed course catalog and synthetic learner profile file as its main inputs. Recommendation structures are cached by Streamlit, so the app behaves like a fast demonstration interface while still generating recommendations from the real project data.
 
 # Limitations
 
@@ -426,4 +430,4 @@ The evaluation found that TF-IDF and KNN shared 60% overlap for the Python examp
 
 The ablation study showed that course title alone can be strong when it contains distinctive keywords, but adding subject and level improves category relevance and difficulty context. The final recommended feature representation is `course_title + subject + level`, matching the project's use of `combined_features`.
 
-Overall, the project achieved a complete recommender-system workflow: data understanding, preprocessing, TF-IDF recommendation, KNN recommendation, evaluation, synthetic persona demonstration, exported results, and a final dashboard. The system is appropriate for a dataset without user interaction data and provides a clear foundation for future work if real user behavior becomes available.
+Overall, the project achieved a complete recommender-system workflow: data understanding, preprocessing, TF-IDF recommendation, KNN recommendation, evaluation, synthetic persona demonstration, exported results, and a final dashboard. The system is appropriate for a dataset without user interaction data and provides a clear foundation for future work if real user behavior becomes available. Although collaborative filtering could not be applied because user interaction data was unavailable, the project demonstrates that meaningful course recommendations can still be generated using course metadata alone.
