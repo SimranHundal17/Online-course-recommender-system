@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 
 import pandas as pd
@@ -12,8 +13,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 st.set_page_config(
-    page_title="Online Course Recommender System",
-    page_icon="🎓",
+    page_title="Online Course Recommender",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -21,22 +21,16 @@ st.set_page_config(
 
 ROOT = Path(__file__).resolve().parent
 PROCESSED_COURSES_PATH = ROOT / "data" / "processed" / "processed_udemy_courses.csv"
-RECOMMENDATION_EXAMPLES_PATH = (
-    ROOT / "results" / "recommendation_examples" / "tfidf_knn_evaluation_examples.csv"
-)
-EVALUATION_DIR = ROOT / "results" / "evaluation"
-GRAPHS_DIR = ROOT / "results" / "graphs"
 SYNTHETIC_USERS_PATH = ROOT / "data" / "synthetic_users.csv"
+GRAPHS_DIR = ROOT / "results" / "graphs"
 
 
-SECTIONS = [
-    "Project Overview",
-    "Course Recommendation",
-    "Algorithm Comparison",
-    "Evaluation Results",
-    "Synthetic Learner Profiles",
-    "Graphs and Results",
-    "Limitations",
+PAGES = [
+    "Home",
+    "Course Recommender",
+    "Learner Profile Recommendations",
+    "Compare Algorithms",
+    "About This Demo",
 ]
 
 
@@ -45,125 +39,110 @@ def inject_styles() -> None:
         """
         <style>
         :root {
-            --bg: #f7f9fc;
+            --bg: #f6f8fb;
             --panel: #ffffff;
             --ink: #172033;
             --muted: #667085;
             --line: #d9e2ef;
             --blue: #2563eb;
-            --green: #059669;
-            --amber: #d97706;
-            --purple: #7c3aed;
+            --green: #047857;
+            --amber: #b45309;
         }
 
         .stApp {
-            background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+            background: #f6f8fb;
             color: var(--ink);
         }
 
         .block-container {
-            padding-top: 1.25rem;
-            padding-bottom: 2rem;
-            max-width: 1320px;
+            max-width: 1240px;
+            padding-top: 1.3rem;
+            padding-bottom: 2.5rem;
         }
 
         section[data-testid="stSidebar"] {
-            background: #0f172a;
+            background: #101828;
         }
 
         section[data-testid="stSidebar"] * {
             color: #f8fafc;
         }
 
-        .hero {
-            background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 62%, #6d28d9 100%);
-            border-radius: 18px;
-            padding: 2rem;
+        .app-title {
+            background: linear-gradient(135deg, #1f4ed8 0%, #0f766e 100%);
+            border-radius: 16px;
+            padding: 1.4rem 1.6rem;
             color: #ffffff;
-            margin-bottom: 1.25rem;
-            box-shadow: 0 18px 50px rgba(37, 99, 235, 0.22);
+            margin-bottom: 1.1rem;
+            box-shadow: 0 16px 42px rgba(15, 23, 42, 0.14);
         }
 
-        .hero h1 {
+        .app-title h1 {
             margin: 0;
-            font-size: 2.6rem;
-            line-height: 1.05;
+            font-size: 2.1rem;
+            line-height: 1.12;
             font-weight: 800;
         }
 
-        .hero p {
-            margin: 0.75rem 0 0 0;
-            max-width: 900px;
-            color: rgba(255,255,255,0.88);
+        .app-title p {
+            margin: 0.55rem 0 0 0;
+            color: rgba(255, 255, 255, 0.88);
             font-size: 1rem;
-            line-height: 1.55;
+            line-height: 1.5;
         }
 
-        .card {
+        .course-card, .profile-card, .mini-card {
             background: var(--panel);
             border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 1rem 1.1rem;
+            border-radius: 10px;
+            padding: 1rem;
             box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.8rem;
         }
 
-        .card h3 {
-            margin: 0 0 0.4rem 0;
+        .course-card h3, .profile-card h3, .mini-card h3 {
             color: var(--ink);
+            font-size: 1.05rem;
+            line-height: 1.25;
+            margin: 0 0 0.55rem 0;
         }
 
-        .card p, .card li {
+        .meta {
             color: var(--muted);
-            line-height: 1.55;
+            font-size: 0.9rem;
+            line-height: 1.45;
         }
 
         .badge {
             display: inline-block;
             border-radius: 999px;
-            padding: 0.28rem 0.65rem;
-            margin: 0.15rem 0.25rem 0.15rem 0;
+            padding: 0.2rem 0.55rem;
+            margin: 0.1rem 0.2rem 0.2rem 0;
             background: #eef4ff;
             color: #1d4ed8;
             border: 1px solid #c7d7fe;
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             font-weight: 700;
+        }
+
+        .score {
+            color: var(--green);
+            font-weight: 800;
         }
 
         .note {
             border-left: 4px solid var(--blue);
             background: #eff6ff;
-            padding: 0.9rem 1rem;
-            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            border-radius: 8px;
             color: #1e3a8a;
-            margin: 0.8rem 0;
+            margin: 0.7rem 0 1rem 0;
         }
 
-        .section-kicker {
-            color: var(--blue);
-            font-size: 0.78rem;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin-bottom: 0.3rem;
-        }
-
-        .soft-panel {
-            background: #ffffff;
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 1rem;
-            margin: 0.75rem 0;
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
-        }
-
-        .footer {
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--line);
+        .small-note {
             color: var(--muted);
-            text-align: center;
             font-size: 0.9rem;
+            line-height: 1.45;
         }
         </style>
         """,
@@ -171,40 +150,12 @@ def inject_styles() -> None:
     )
 
 
-def render_card(title: str, body: str) -> None:
+def render_title(title: str, subtitle: str) -> None:
     st.markdown(
         f"""
-        <div class="card">
-            <h3>{title}</h3>
-            <p>{body}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_header() -> None:
-    st.markdown(
-        """
-        <div class="hero">
-            <h1>Online Course Recommender System</h1>
-            <p>
-                A final project dashboard for exploring content-based course recommendations,
-                comparing TF-IDF and KNN recommenders, reviewing evaluation results, and
-                demonstrating synthetic learner personas for interface personalization.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_section_intro(kicker: str, text: str) -> None:
-    st.markdown(
-        f"""
-        <div class="soft-panel">
-            <div class="section-kicker">{kicker}</div>
-            <div>{text}</div>
+        <div class="app-title">
+            <h1>{escape(title)}</h1>
+            <p>{escape(subtitle)}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -219,68 +170,50 @@ def load_courses() -> pd.DataFrame:
 
 
 @st.cache_data
-def load_recommendation_examples() -> pd.DataFrame:
-    if not RECOMMENDATION_EXAMPLES_PATH.exists():
-        return pd.DataFrame()
-    return pd.read_csv(RECOMMENDATION_EXAMPLES_PATH)
-
-
-@st.cache_data
-def load_csv_if_exists(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        return pd.DataFrame()
-    return pd.read_csv(path)
-
-
-@st.cache_data
 def load_synthetic_users() -> pd.DataFrame:
-    return load_csv_if_exists(SYNTHETIC_USERS_PATH)
+    if not SYNTHETIC_USERS_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(SYNTHETIC_USERS_PATH)
 
 
-@st.cache_data
-def load_text_if_exists(path: Path) -> str:
-    if not path.exists():
-        return ""
-    return path.read_text(encoding="utf-8")
+def format_number(value: int | float | str) -> str:
+    try:
+        return f"{int(float(value)):,}"
+    except (TypeError, ValueError):
+        return "0"
 
 
-def format_number(value: int | float) -> str:
-    return f"{int(value):,}"
+def format_price(value: int | float | str) -> str:
+    try:
+        return f"${int(float(value))}"
+    except (TypeError, ValueError):
+        return str(value)
 
 
-def render_dataset_metrics(courses: pd.DataFrame) -> None:
-    subjects = courses["subject"].nunique() if "subject" in courses else 0
-    levels = courses["level"].nunique() if "level" in courses else 0
-    cols = st.columns(4)
+def required_columns_available(courses: pd.DataFrame) -> bool:
+    required = {
+        "course_title",
+        "subject",
+        "level",
+        "num_subscribers",
+        "num_reviews",
+        "price",
+        "combined_features",
+    }
+    return required.issubset(courses.columns)
+
+
+def render_dataset_stats(courses: pd.DataFrame) -> None:
+    cols = st.columns(3)
     cols[0].metric("Courses", format_number(len(courses)))
-    cols[1].metric("Subjects", subjects)
-    cols[2].metric("Course Levels", levels)
-    cols[3].metric("Feature Columns", len(courses.columns))
-
-
-def render_course_details(course: pd.Series) -> None:
-    st.markdown(
-        f"""
-        <div class="card">
-            <h3>{course["course_title"]}</h3>
-            <span class="badge">{course["subject"]}</span>
-            <span class="badge">{course["level"]}</span>
-            <span class="badge">{format_number(course["num_subscribers"])} subscribers</span>
-            <span class="badge">{format_number(course["num_reviews"])} reviews</span>
-            <p>
-                <strong>Price:</strong> {course["price"]} |
-                <strong>Duration:</strong> {course["content_duration"]} hours
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    cols[1].metric("Subjects", format_number(courses["subject"].nunique()))
+    cols[2].metric("Levels", format_number(courses["level"].nunique()))
 
 
 def resolve_course_selection(courses: pd.DataFrame, title: str) -> tuple[int, str, bool]:
     query = str(title).strip().lower()
     if not query:
-        raise ValueError("Please enter or select a course title before generating recommendations.")
+        raise ValueError("Please search for or select a course title.")
 
     normalized_titles = courses["course_title"].fillna("").str.lower()
     exact_matches = courses.index[normalized_titles == query].tolist()
@@ -329,40 +262,55 @@ def build_knn_recommender(courses: pd.DataFrame):
     else:
         feature_matrix = text_matrix.tocsr()
 
-    model = NearestNeighbors(n_neighbors=6, metric="cosine", algorithm="brute")
+    model = NearestNeighbors(n_neighbors=51, metric="cosine", algorithm="brute")
     model.fit(feature_matrix)
     return model, feature_matrix
 
 
-def tfidf_recommendations(courses: pd.DataFrame, selected_title: str, n: int = 5) -> pd.DataFrame:
+def recommendation_columns(courses: pd.DataFrame) -> list[str]:
+    columns = [
+        "course_title",
+        "subject",
+        "level",
+        "num_subscribers",
+        "num_reviews",
+        "price",
+    ]
+    if "content_duration" in courses.columns:
+        columns.append("content_duration")
+    return columns
+
+
+def tfidf_recommendations(
+    courses: pd.DataFrame, selected_title: str, n: int = 5
+) -> pd.DataFrame:
     _, _, similarity_matrix = build_tfidf_recommender(courses)
     selected_index = get_course_index(courses, selected_title)
     scores = list(enumerate(similarity_matrix[selected_index]))
     scores = sorted(scores, key=lambda item: item[1], reverse=True)
     scores = [item for item in scores if item[0] != selected_index][:n]
 
-    result = courses.loc[
-        [index for index, _ in scores],
-        ["course_title", "subject", "level", "num_subscribers", "num_reviews", "price"],
-    ].copy()
+    result = courses.loc[[index for index, _ in scores], recommendation_columns(courses)].copy()
     result.insert(0, "rank", range(1, len(result) + 1))
     result["score"] = [round(float(score), 4) for _, score in scores]
     return result.reset_index(drop=True)
 
 
-def knn_recommendations(courses: pd.DataFrame, selected_title: str, n: int = 5) -> pd.DataFrame:
+def knn_recommendations(
+    courses: pd.DataFrame, selected_title: str, n: int = 5
+) -> pd.DataFrame:
     model, feature_matrix = build_knn_recommender(courses)
     selected_index = get_course_index(courses, selected_title)
     distances, indices = model.kneighbors(
         feature_matrix[selected_index],
-        n_neighbors=n + 1,
+        n_neighbors=min(n + 1, len(courses)),
     )
 
     rows = []
     for distance, index in zip(distances[0], indices[0]):
         if index == selected_index:
             continue
-        row = courses.loc[index, ["course_title", "subject", "level", "num_subscribers", "num_reviews", "price"]].to_dict()
+        row = courses.loc[index, recommendation_columns(courses)].to_dict()
         row["distance"] = round(float(distance), 4)
         row["score"] = round(1 - float(distance), 4)
         rows.append(row)
@@ -372,7 +320,7 @@ def knn_recommendations(courses: pd.DataFrame, selected_title: str, n: int = 5) 
     result = pd.DataFrame(rows)
     if not result.empty:
         result.insert(0, "rank", range(1, len(result) + 1))
-    return result
+    return result.reset_index(drop=True)
 
 
 def persona_recommendations(courses: pd.DataFrame, persona: pd.Series, n: int = 5) -> pd.DataFrame:
@@ -406,415 +354,363 @@ def persona_recommendations(courses: pd.DataFrame, persona: pd.Series, n: int = 
     scored["level_match"] = (
         scored["level"].fillna("").str.lower() == preferred_level
     ).astype(int)
-    scored["persona_score"] = (
+    scored["score"] = (
         scored["interest_matches"]
         + scored["subject_match"] * 2
         + scored["level_match"]
     )
 
     result = scored.sort_values(
-        ["persona_score", "interest_matches", "num_subscribers"],
+        ["score", "interest_matches", "num_subscribers"],
         ascending=[False, False, False],
     ).head(n)
-    result = result[
-        [
-            "course_title",
-            "subject",
-            "level",
-            "num_subscribers",
-            "num_reviews",
-            "price",
-            "persona_score",
-        ]
-    ].copy()
+    result = result[recommendation_columns(courses) + ["score"]].copy()
     result.insert(0, "rank", range(1, len(result) + 1))
     return result.reset_index(drop=True)
 
 
-def render_recommendation_table(title: str, recommendations: pd.DataFrame) -> None:
-    st.subheader(title)
-    if recommendations.empty:
-        st.info("No recommendations available.")
-        return
-    score_label = (
-        "KNN similarity score (1 - cosine distance)"
-        if "knn" in title.lower()
-        else "Similarity score"
-    )
-    st.dataframe(
-        recommendations,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "score": st.column_config.NumberColumn(score_label, format="%.4f"),
-            "distance": st.column_config.NumberColumn("Cosine distance", format="%.4f"),
-            "num_subscribers": st.column_config.NumberColumn("num_subscribers", format="%d"),
-            "num_reviews": st.column_config.NumberColumn("num_reviews", format="%d"),
-            "price": st.column_config.NumberColumn("price", format="%d"),
-            "persona_score": st.column_config.NumberColumn("persona_score", format="%d"),
-        },
-    )
-
-
-def project_overview_section() -> None:
-    st.header("Project Overview")
-    render_section_intro(
-        "Final Project Dashboard",
-        "This dashboard brings together the processed course dataset, real recommender outputs, evaluation files, exported graphs, and synthetic learner personas.",
-    )
-    courses = load_courses()
-    if not courses.empty:
-        render_dataset_metrics(courses)
-        st.subheader("Available Dataset Coverage")
-        subject_badges = " ".join(
-            f'<span class="badge">{subject}</span>'
-            for subject in sorted(courses["subject"].dropna().unique())
-        )
-        level_badges = " ".join(
-            f'<span class="badge">{level}</span>'
-            for level in sorted(courses["level"].dropna().unique())
-        )
-        st.markdown(f"**Subjects:**<br>{subject_badges}", unsafe_allow_html=True)
-        st.markdown(f"**Levels:**<br>{level_badges}", unsafe_allow_html=True)
-    else:
-        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
-
-    cols = st.columns(3)
-    with cols[0]:
-        render_card("Recommendation Goal", "Suggest relevant Udemy-style courses using course metadata and content similarity.")
-    with cols[1]:
-        render_card("Models Compared", "TF-IDF with cosine similarity is compared against a KNN content-based recommender.")
-    with cols[2]:
-        render_card("Evaluation Focus", "The project evaluates relevance, overlap, runtime, and feature ablation instead of supervised metrics.")
-
-
-def course_recommendation_section() -> None:
-    st.header("Course Recommendation")
-    render_section_intro(
-        "Live Content-Based Recommendation",
-        "Select any processed course and generate Top-5 recommendations using TF-IDF, KNN, or both models side by side.",
-    )
-    courses = load_courses()
-    if courses.empty:
-        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
-        return
-
-    render_dataset_metrics(courses)
-
-    st.subheader("Select a Course")
-    selected_title = st.selectbox(
-        "Course title",
-        courses["course_title"].sort_values().tolist(),
-        index=0,
-    )
-    course_query = st.text_input(
-        "Course title search",
-        value=selected_title,
-        help="You can use an exact title or a partial title.",
-    )
-    st.caption(
-        "If multiple courses share the same title, the system uses the first matching course entry."
-    )
-    algorithm = st.radio(
-        "Recommendation method",
-        ["TF-IDF", "KNN", "Compare Both"],
-        horizontal=True,
-    )
-
-    try:
-        selected_index, matched_title, partial_match = resolve_course_selection(
-            courses, course_query
-        )
-    except ValueError as error:
-        st.warning(str(error))
-        return
-
-    selected_course = courses.loc[selected_index]
-    if partial_match:
-        st.info(f"Partial title matched: {matched_title}")
-    else:
-        st.caption(f"Matched course title: {matched_title}")
-
-    left, right = st.columns([1, 1])
-    with left:
-        st.subheader("Selected Course Details")
-        render_course_details(selected_course)
-    with right:
-        st.subheader("Recommendation Setup")
-        st.write("Recommendations are generated from the processed dataset using the project models.")
-        st.write("**TF-IDF:** text similarity from `combined_features`.")
-        st.write("**KNN:** text similarity plus scaled numeric metadata.")
-        st.write("KNN scores are shown as `1 - cosine distance`.")
-
-    st.divider()
-    if algorithm == "TF-IDF":
-        render_recommendation_table(
-            "Top 5 TF-IDF Recommendations",
-            tfidf_recommendations(courses, matched_title, n=5),
-        )
-    elif algorithm == "KNN":
-        render_recommendation_table(
-            "Top 5 KNN Recommendations",
-            knn_recommendations(courses, matched_title, n=5),
-        )
-    else:
-        tfidf_col, knn_col = st.columns(2)
-        with tfidf_col:
-            render_recommendation_table(
-                "TF-IDF Recommendations",
-                tfidf_recommendations(courses, matched_title, n=5),
-            )
-        with knn_col:
-            render_recommendation_table(
-                "KNN Recommendations",
-                knn_recommendations(courses, matched_title, n=5),
-            )
-
-
-def algorithm_comparison_section() -> None:
-    st.header("Algorithm Comparison")
-    render_section_intro(
-        "Saved Evaluation Examples",
-        "This section uses the generated TF-IDF and KNN recommendation examples that were saved for the evaluation notebook.",
-    )
-    examples = load_recommendation_examples()
-    if examples.empty:
-        st.warning(f"Recommendation examples not found at `{RECOMMENDATION_EXAMPLES_PATH}`.")
-        return
+def render_course_card(
+    course: pd.Series | dict,
+    *,
+    rank: int | None = None,
+    score: float | None = None,
+    label: str = "Similarity",
+) -> None:
+    title = escape(str(course.get("course_title", "Untitled course")))
+    subject = escape(str(course.get("subject", "Unknown subject")))
+    level = escape(str(course.get("level", "Unknown level")))
+    subscribers = format_number(course.get("num_subscribers", 0))
+    reviews = format_number(course.get("num_reviews", 0))
+    price = format_price(course.get("price", 0))
+    duration = course.get("content_duration")
+    duration_html = ""
+    if duration is not None:
+        duration_html = f" · {escape(str(duration))} hrs"
+    rank_html = f"<span class='badge'>#{rank}</span>" if rank is not None else ""
+    score_html = ""
+    if score is not None:
+        score_html = f"<div class='score'>{escape(label)}: {score:.4f}</div>"
 
     st.markdown(
-        "This section uses the saved comparison outputs generated for the evaluation notebook."
-    )
-    category = st.selectbox(
-        "Evaluation example",
-        examples["category"].drop_duplicates().tolist(),
-    )
-    subset = examples[examples["category"] == category].copy()
-    input_course = subset["input_course"].iloc[0]
-    st.markdown(f"**Input course:** `{input_course}`")
-
-    tfidf_rows = subset[subset["model"] == "TF-IDF"].drop(columns=["category", "input_course"])
-    knn_rows = subset[subset["model"] == "KNN"].drop(columns=["category", "input_course"])
-
-    left, right = st.columns(2)
-    with left:
-        st.subheader("TF-IDF Recommendations")
-        st.dataframe(tfidf_rows, use_container_width=True, hide_index=True)
-    with right:
-        st.subheader("KNN Recommendations")
-        st.caption("KNN similarity score is calculated as `1 - cosine distance`.")
-        st.dataframe(knn_rows, use_container_width=True, hide_index=True)
-
-    tfidf_titles = set(tfidf_rows["course_title"])
-    knn_titles = set(knn_rows["course_title"])
-    common_titles = sorted(tfidf_titles.intersection(knn_titles))
-    overlap = len(common_titles) / 5 * 100
-
-    st.subheader("Overlap Discussion")
-    st.metric("Common Recommendations", f"{len(common_titles)} / 5", f"{overlap:.0f}% overlap")
-    if common_titles:
-        st.write("**Shared recommendations:**")
-        for title in common_titles:
-            st.write(f"- {title}")
-    st.write(
-        "Higher overlap means both algorithms agree on similar courses. Lower overlap can indicate that KNN is introducing more varied alternatives because it also uses numeric metadata."
-    )
-
-
-def evaluation_results_section() -> None:
-    st.header("Evaluation Results")
-    render_section_intro(
-        "Measured Project Outputs",
-        "These tables come from the completed evaluation exports and summarize overlap, runtime, and ablation findings.",
-    )
-    overlap = load_csv_if_exists(EVALUATION_DIR / "recommendation_overlap.csv")
-    runtime = load_csv_if_exists(EVALUATION_DIR / "runtime_comparison.csv")
-    ablation = load_csv_if_exists(EVALUATION_DIR / "ablation_results.csv")
-    summary = load_text_if_exists(EVALUATION_DIR / "evaluation_summary.md")
-
-    st.markdown("Evaluation is based on the completed notebook results and exported CSV files.")
-
-    tab_overlap, tab_runtime, tab_ablation, tab_summary = st.tabs(
-        ["Overlap", "Runtime", "Ablation", "Summary"]
-    )
-    with tab_overlap:
-        st.subheader("Recommendation Overlap")
-        if overlap.empty:
-            st.warning("Overlap results are not available.")
-        else:
-            st.dataframe(overlap, use_container_width=True, hide_index=True)
-    with tab_runtime:
-        st.subheader("Runtime Comparison")
-        if runtime.empty:
-            st.warning("Runtime results are not available.")
-        else:
-            st.dataframe(runtime, use_container_width=True, hide_index=True)
-            st.caption(
-                "Runtime values are environment-dependent and mainly used for relative comparison."
-            )
-    with tab_ablation:
-        st.subheader("Ablation Study")
-        if ablation.empty:
-            st.warning("Ablation results are not available.")
-        else:
-            st.dataframe(ablation, use_container_width=True, hide_index=True)
-    with tab_summary:
-        st.subheader("Evaluation Summary")
-        if summary:
-            st.markdown(summary)
-        else:
-            st.warning("Evaluation summary is not available.")
-
-
-def synthetic_profiles_section() -> None:
-    st.header("Synthetic Learner Profiles")
-    render_section_intro(
-        "Persona Demonstration",
-        "Synthetic personas demonstrate how a future interface could personalize a course discovery experience without using real user histories.",
-    )
-    st.markdown(
-        """
-        <div class="note">
-            Synthetic learner profiles are for demonstration only. This is not collaborative filtering.
+        f"""
+        <div class="course-card">
+            <h3>{rank_html} {title}</h3>
+            <span class="badge">{subject}</span>
+            <span class="badge">{level}</span>
+            <div class="meta">
+                {subscribers} subscribers · {reviews} reviews · {price}{duration_html}
+            </div>
+            {score_html}
         </div>
         """,
         unsafe_allow_html=True,
     )
-    personas = load_synthetic_users()
-    courses = load_courses()
-    if personas.empty:
-        st.warning(f"Synthetic persona file not found at `{SYNTHETIC_USERS_PATH}`.")
-        return
-    if courses.empty:
-        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
+
+
+def render_recommendation_cards(
+    recommendations: pd.DataFrame, *, label: str = "Similarity"
+) -> None:
+    if recommendations.empty:
+        st.info("No recommendations available.")
         return
 
-    selected_persona_name = st.selectbox(
-        "Select a learner persona",
-        personas["persona_name"].tolist(),
-    )
-    persona = personas[personas["persona_name"] == selected_persona_name].iloc[0]
-
-    left, right = st.columns([0.9, 1.2])
-    with left:
-        st.subheader("Persona Details")
-        persona_name = str(persona["persona_name"])
-        display_persona_name = (
-            "Photography / Photo Editing"
-            if persona_name.lower() == "photographer"
-            else persona_name
+    for _, row in recommendations.iterrows():
+        render_course_card(
+            row.to_dict(),
+            rank=int(row["rank"]),
+            score=float(row["score"]) if "score" in row else None,
+            label=label,
         )
+
+
+def course_picker(courses: pd.DataFrame, key_prefix: str) -> tuple[str, str]:
+    search = st.text_input(
+        "Search course title",
+        placeholder="Try python, investment banking, web development...",
+        key=f"{key_prefix}_search",
+    )
+    titles = courses["course_title"].dropna().sort_values().tolist()
+    if search.strip():
+        filtered = [
+            title for title in titles if search.strip().lower() in title.lower()
+        ]
+        if not filtered:
+            st.warning("No visible title matches the search yet. You can still use the typed query.")
+            filtered = titles[:100]
+    else:
+        filtered = titles[:250]
+
+    selected_title = st.selectbox(
+        "Select a course",
+        filtered,
+        key=f"{key_prefix}_select",
+    )
+    query = search.strip() or selected_title
+    return query, selected_title
+
+
+def home_page(courses: pd.DataFrame) -> None:
+    render_title(
+        "Find Similar Udemy Courses",
+        "Select a course or learner profile to receive recommended Udemy courses.",
+    )
+    st.write(
+        "Use the recommender to explore course-based matches or try a synthetic learner profile for a personalized demo."
+    )
+    render_dataset_stats(courses)
+
+    st.divider()
+    left, right = st.columns(2)
+    with left:
         st.markdown(
-            f"""
-            <div class="card">
-                <h3>{display_persona_name}</h3>
-                <span class="badge">{persona["preferred_subject"]}</span>
-                <span class="badge">{persona["preferred_level"]}</span>
-                <p><strong>Interests:</strong> {persona["interests"]}</p>
+            """
+            <div class="mini-card">
+                <h3>Course Recommender</h3>
+                <div class="meta">Search for a real course and receive similar courses using TF-IDF, KNN, or both.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        if persona_name.lower() == "photographer":
-            st.caption(
-                "This dataset mainly contains Photoshop, photo-editing, and graphic-design related courses rather than pure photography titles."
-            )
     with right:
-        st.subheader("Simple Matching Method")
-        st.write(
-            "The demo ranks courses by matching persona interests with course titles, subjects, levels, and combined features."
-        )
-        st.write(
-            "These are synthetic learner profiles for demonstration only. This is not collaborative filtering."
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>Learner Profiles</h3>
+                <div class="meta">Choose a synthetic learner profile and see metadata-based course suggestions.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    st.divider()
-    render_recommendation_table(
-        "Persona-Based Content Recommendations",
-        persona_recommendations(courses, persona, n=5),
+
+def course_recommender_page(courses: pd.DataFrame) -> None:
+    render_title(
+        "Course Recommender",
+        "Search for a course and generate similar Udemy course recommendations.",
     )
 
+    controls, selected_panel = st.columns([0.95, 1.05])
+    with controls:
+        query, _ = course_picker(courses, "course")
+        algorithm = st.radio(
+            "Recommendation algorithm",
+            ["TF-IDF + Cosine Similarity", "KNN Recommender", "Compare Both"],
+        )
+        count = st.slider("Number of recommendations", 3, 10, 5)
 
-def graphs_section() -> None:
-    st.header("Graphs and Results")
-    render_section_intro(
-        "Presentation Assets",
-        "This section displays exported graph files and their summary notes for direct use in the final presentation.",
-    )
-    if not GRAPHS_DIR.exists():
-        st.warning(f"Graphs directory not found at `{GRAPHS_DIR}`.")
+    try:
+        selected_index, matched_title, partial_match = resolve_course_selection(courses, query)
+    except ValueError as error:
+        st.warning(str(error))
         return
 
-    graph_files = sorted(GRAPHS_DIR.glob("*.png"))
-    if not graph_files:
-        st.info("No graph images are currently available.")
+    with selected_panel:
+        st.subheader("Selected Course")
+        if partial_match:
+            st.caption(f"Matched closest title: {matched_title}")
+        render_course_card(courses.loc[selected_index])
+
+    st.divider()
+    if algorithm == "TF-IDF + Cosine Similarity":
+        st.subheader("Recommended Courses")
+        render_recommendation_cards(
+            tfidf_recommendations(courses, matched_title, n=count),
+            label="Similarity",
+        )
+    elif algorithm == "KNN Recommender":
+        st.subheader("Recommended Courses")
+        render_recommendation_cards(
+            knn_recommendations(courses, matched_title, n=count),
+            label="KNN score",
+        )
     else:
-        st.markdown("These visuals come from the project notebooks and evaluation results.")
-        for index in range(0, len(graph_files), 2):
-            cols = st.columns(2)
-            for col, graph_path in zip(cols, graph_files[index : index + 2]):
-                with col:
-                    title = graph_path.stem.replace("_", " ").title()
-                    st.subheader(title)
-                    st.image(str(graph_path), use_container_width=True)
+        left, right = st.columns(2)
+        with left:
+            st.subheader("TF-IDF + Cosine Similarity")
+            render_recommendation_cards(
+                tfidf_recommendations(courses, matched_title, n=count),
+                label="Similarity",
+            )
+        with right:
+            st.subheader("KNN Recommender")
+            render_recommendation_cards(
+                knn_recommendations(courses, matched_title, n=count),
+                label="KNN score",
+            )
 
-    graph_summary = load_text_if_exists(GRAPHS_DIR / "graph_summary.md")
-    if graph_summary:
-        st.divider()
-        st.subheader("Graph Summary")
-        st.markdown(graph_summary)
 
-
-def limitations_section() -> None:
-    st.header("Limitations")
-    render_section_intro(
-        "Responsible Interpretation",
-        "The project uses available metadata and synthetic personas only, so the results should be interpreted as content-based recommendation behavior rather than user-preference learning.",
+def learner_profile_page(courses: pd.DataFrame) -> None:
+    render_title(
+        "Learner Profile Recommendations",
+        "Choose a synthetic learner profile and receive course suggestions based on interests and metadata.",
     )
     st.markdown(
         """
-        - The dataset does not contain real user interaction data.
-        - Recommendation evaluation is qualitative and comparative rather than based on supervised labels.
-        - Synthetic personas are only for demonstration and do not represent real users.
-        - The dashboard is a final project interface, not a production recommendation service.
-        """
-    )
-
-
-def main() -> None:
-    inject_styles()
-    with st.sidebar:
-        st.title("Navigation")
-        section = st.radio("Go to", SECTIONS)
-        st.divider()
-        st.caption("Online Course Recommender System")
-        st.caption("Content-based TF-IDF and KNN comparison")
-
-    render_header()
-
-    if section == "Project Overview":
-        project_overview_section()
-    elif section == "Course Recommendation":
-        course_recommendation_section()
-    elif section == "Algorithm Comparison":
-        algorithm_comparison_section()
-    elif section == "Evaluation Results":
-        evaluation_results_section()
-    elif section == "Synthetic Learner Profiles":
-        synthetic_profiles_section()
-    elif section == "Graphs and Results":
-        graphs_section()
-    elif section == "Limitations":
-        limitations_section()
-
-    st.markdown(
-        """
-        <div class="footer">
-            Online Course Recommender System | Content-based TF-IDF and KNN project dashboard
+        <div class="note">
+            These are synthetic learner profiles for demonstration only. This is not collaborative filtering.
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    personas = load_synthetic_users()
+    if personas.empty:
+        st.warning(f"Synthetic learner profile file not found at `{SYNTHETIC_USERS_PATH}`.")
+        return
+
+    selected_name = st.selectbox("Learner profile", personas["persona_name"].tolist())
+    persona = personas[personas["persona_name"] == selected_name].iloc[0]
+    count = st.slider("Number of recommendations", 3, 10, 5, key="persona_count")
+
+    left, right = st.columns([0.9, 1.1])
+    with left:
+        st.markdown(
+            f"""
+            <div class="profile-card">
+                <h3>{escape(str(persona["persona_name"]))}</h3>
+                <span class="badge">{escape(str(persona["preferred_subject"]))}</span>
+                <span class="badge">{escape(str(persona["preferred_level"]))}</span>
+                <div class="meta"><strong>Interests:</strong> {escape(str(persona["interests"]))}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>How the demo matches courses</h3>
+                <div class="meta">
+                    The app compares profile interests, preferred subject, and preferred level with course metadata.
+                    No real user histories, ratings, or interactions are used.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.subheader("Recommended Courses")
+    render_recommendation_cards(
+        persona_recommendations(courses, persona, n=count),
+        label="Profile score",
+    )
+
+
+def compare_algorithms_page(courses: pd.DataFrame) -> None:
+    render_title(
+        "Compare Algorithms",
+        "Select one course and compare the two content-based recommendation methods side by side.",
+    )
+    query, _ = course_picker(courses, "compare")
+    count = st.slider("Number of recommendations", 3, 10, 5, key="compare_count")
+
+    try:
+        _, matched_title, partial_match = resolve_course_selection(courses, query)
+    except ValueError as error:
+        st.warning(str(error))
+        return
+
+    if partial_match:
+        st.caption(f"Matched closest title: {matched_title}")
+
+    left, right = st.columns(2)
+    with left:
+        st.subheader("TF-IDF + Cosine Similarity")
+        st.caption("TF-IDF focuses mainly on textual similarity.")
+        render_recommendation_cards(
+            tfidf_recommendations(courses, matched_title, n=count),
+            label="Similarity",
+        )
+    with right:
+        st.subheader("KNN Recommender")
+        st.caption("KNN combines text features with numeric course metadata.")
+        render_recommendation_cards(
+            knn_recommendations(courses, matched_title, n=count),
+            label="KNN score",
+        )
+
+
+def about_page(courses: pd.DataFrame) -> None:
+    render_title(
+        "About This Demo",
+        "A short overview of the data and methods behind the recommender interface.",
+    )
+    left, right = st.columns([1, 1])
+    with left:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>Dataset</h3>
+                <div class="meta">Udemy course metadata including titles, subjects, levels, subscribers, reviews, prices, and duration.</div>
+            </div>
+            <div class="mini-card">
+                <h3>Methods</h3>
+                <div class="meta">TF-IDF + cosine similarity and KNN content-based recommendation.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>Limitation</h3>
+                <div class="meta">The dataset has no real user interaction data, so collaborative filtering is not used.</div>
+            </div>
+            <div class="mini-card">
+                <h3>Synthetic Learners</h3>
+                <div class="meta">Synthetic profiles are only for demonstrating possible personalization in the interface.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    chart_files = [
+        GRAPHS_DIR / "number_of_courses_per_subject_category.png",
+        GRAPHS_DIR / "distribution_of_course_levels.png",
+        GRAPHS_DIR / "recommendation_overlap_comparison.png",
+    ]
+    available = [path for path in chart_files if path.exists()]
+    if available:
+        st.subheader("Optional Project Charts")
+        cols = st.columns(len(available))
+        for col, path in zip(cols, available):
+            with col:
+                st.image(str(path), use_container_width=True)
+
+
+def main() -> None:
+    inject_styles()
+    courses = load_courses()
+
+    with st.sidebar:
+        st.title("Course Recommender")
+        page = st.radio("Navigation", PAGES)
+        st.divider()
+        if not courses.empty and required_columns_available(courses):
+            st.caption(f"{format_number(len(courses))} courses loaded")
+        st.caption("Content-based TF-IDF and KNN demo")
+
+    if courses.empty:
+        render_title("Course Recommender", "The processed course dataset could not be loaded.")
+        st.warning(f"Processed dataset not found at `{PROCESSED_COURSES_PATH}`.")
+        return
+    if not required_columns_available(courses):
+        render_title("Course Recommender", "The processed course dataset is missing required columns.")
+        st.error("Please check the processed dataset columns before running the demo.")
+        st.dataframe(pd.DataFrame({"available_columns": courses.columns}))
+        return
+
+    if page == "Home":
+        home_page(courses)
+    elif page == "Course Recommender":
+        course_recommender_page(courses)
+    elif page == "Learner Profile Recommendations":
+        learner_profile_page(courses)
+    elif page == "Compare Algorithms":
+        compare_algorithms_page(courses)
+    elif page == "About This Demo":
+        about_page(courses)
 
 
 if __name__ == "__main__":
