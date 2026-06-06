@@ -1,6 +1,6 @@
 # Online Course Recommender System
 
-A content-based recommender system for Udemy-style online courses. The project compares a TF-IDF + cosine similarity recommender with a KNN-based recommender, evaluates their recommendation behavior, and includes a Streamlit dashboard prototype for course-based and synthetic learner-persona demonstrations.
+A content-based recommender system for Udemy-style online courses. The project compares a TF-IDF + cosine similarity recommender with a KNN-based recommender, evaluates their recommendation behavior, and includes a Streamlit demo app for course-based recommendations, synthetic learner-profile recommendations, and feature ablation explanation.
 
 ## Project Overview
 
@@ -34,6 +34,10 @@ Online-course-recommender-system/
 |   |-- evaluation/
 |   |-- graphs/
 |   `-- recommendation_examples/
+|-- report/
+|   |-- figures/
+|   |-- report.qmd
+|   `-- report.pdf
 |-- requirements.txt
 `-- README.md
 ```
@@ -153,20 +157,22 @@ data/synthetic_users.csv
 
 These personas are for demonstration purposes only. They are not real users and are not used for collaborative filtering. They support interface personalization demos in the Streamlit app.
 
-## Streamlit Dashboard
+## Streamlit Demo App
 
-The dashboard is implemented in:
+The demo app is implemented in:
 
 ```text
 app.py
 ```
 
-It supports two modes:
+It is focused on interactive recommendation rather than report viewing. It includes:
 
-1. Course-Based Recommendation
-2. Learner Persona Recommendation
+- **Home:** compact dataset summary and navigation entry point.
+- **Course Recommender:** search/select a real course, choose TF-IDF, KNN, or Compare Both, and generate ranked course cards.
+- **Learner Profiles:** choose a synthetic learner profile and generate profile-based recommendations.
+- **About This Demo:** visual explanation of TF-IDF, KNN, profile scoring, score interpretation, and an interactive feature ablation demo.
 
-The learner persona mode uses synthetic profiles and simple matching-based recommendations for demonstration.
+The learner profile mode uses synthetic profiles and simple matching-based recommendations for demonstration only. It is not collaborative filtering.
 
 Run the dashboard with:
 
@@ -216,6 +222,7 @@ streamlit run app.py
 - Seaborn
 - Jupyter Notebook
 - Streamlit
+- Quarto for the rendered project report
 
 ## Project Status
 
@@ -229,7 +236,8 @@ The project includes:
 - evaluation result exports
 - graph exports
 - synthetic learner personas
-- Streamlit dashboard prototype
+- Streamlit recommender demo app
+- rendered Quarto report
 
 ## License
 
