@@ -4,7 +4,8 @@ subtitle: "TF-IDF, KNN, Evaluation, and Dashboard Report"
 author: "University Recommender Systems Project"
 format:
   pdf:
-    toc: false
+    toc: true
+    toc-depth: 2
     number-sections: true
     colorlinks: true
     fontsize: 10pt
@@ -79,21 +80,17 @@ Instead of implementing only one content-based method, we compare two approaches
 
 ## Content-Based Recommendation Systems
 
-Content-based recommendation systems suggest items by comparing the attributes of the items themselves. For text-heavy items, this often means representing item descriptions, titles, genres, tags, or categories as numerical vectors and then recommending items with similar vectors. This approach is useful when user behavior data is unavailable, because it can work from item metadata alone.
-
-The main strength of content-based recommendation is interpretability. If two courses share words such as "python", "finance", or "web development", the reason for their similarity is easy to explain. The limitation is that the system may recommend items that are too similar to the selected item and may miss useful alternatives that use different wording.
+Content-based recommendation systems compare items using their own attributes, such as titles, categories, descriptions, tags, or metadata. They are useful when user behavior data is unavailable and are usually easy to explain. Their weakness is that they may recommend items that are very similar in wording and may miss useful alternatives described with different terms.
 
 ## Collaborative Filtering
 
-Collaborative filtering recommends items by learning from user behavior. A system can compare users with similar histories or compare items that tend to be chosen by similar users. This approach is powerful when there are enough ratings, clicks, purchases, enrollments, or watch histories because it can discover patterns that are not obvious from item descriptions alone.
-
-Collaborative filtering could not be applied directly in this project because the dataset does not contain user IDs, ratings, enrollments, clicks, or any other interaction records. Without those relationships between users and courses, the system cannot learn user-based or item-based preference patterns.
+Collaborative filtering recommends items from user behavior patterns, such as ratings, clicks, enrollments, or purchases. It can capture preferences that item descriptions alone do not show, but it requires interaction data. Since this dataset has no user IDs or user-course histories, collaborative filtering could not be applied directly.
 
 ## Hybrid Recommendation Systems
 
-Hybrid recommendation systems combine more than one recommendation strategy, often using both content features and collaborative filtering. This can reduce the weaknesses of each individual method. For example, content features can help recommend new items with little interaction history, while collaborative signals can capture user preferences that metadata alone may not explain.
+Hybrid systems combine multiple recommendation strategies, often using both item metadata and user interaction data. They can balance the interpretability of content-based methods with the preference-learning ability of collaborative filtering. In this project, a full hybrid system was not possible because the required user behavior data was missing.
 
-In this project, a full hybrid recommender was not possible because user interaction data was missing. However, comparing TF-IDF with KNN still allowed us to study two content-based approaches and observe how recommendations change when numeric metadata is added to text features.
+For this reason, the project uses content-based methods. TF-IDF and KNN both allow recommendations to be generated from course metadata alone, which matches the structure and limitations of the Udemy dataset.
 
 # Dataset
 
@@ -293,9 +290,9 @@ The evaluation notebook used three representative input courses:
 
 | Category | Input Course |
 |---|---|
-| Python-related | `web programming with python` |
-| Business/Finance | `ultimate investment banking course` |
-| Web Development | `learn complete web development from scratch` |
+| Python-related | web programming with python |
+| Business/Finance | ultimate investment banking course |
+| Web Development | learn complete web development from scratch |
 
 For the Python-related course, both models recommended `python web programming` as the top recommendation. TF-IDF also recommended several Python-specific courses such as `python for beginners python programming language tutorial` and `complete python web course build 8 python web apps`. KNN recommended some overlapping Python courses, but also introduced broader web development courses such as `learn html5 programming from scratch`.
 
@@ -342,9 +339,9 @@ The three experiments were:
 
 | Experiment | Feature Combination | Observation |
 |---|---|---|
-| Experiment A | `course_title only` | Already produced relevant recommendations because the title contains strong keywords: web, programming, and python. |
-| Experiment B | `course_title + subject` | Kept the same top-five recommendation set while improving several similarity scores; subject reinforced Web Development relevance. |
-| Experiment C | `course_title + subject + level` | Kept recommendations focused on Python and Web Development while adding useful difficulty context; selected as the best final text representation. |
+| A | course title only | Relevant results because the title contains strong keywords: web, programming, and python. |
+| B | course title + subject | Same top-five set, with subject reinforcing Web Development relevance. |
+| C | course title + subject + level | Focused results with added difficulty context; selected as the final text representation. |
 
 ![Ablation study comparison.](figures/ablation_study_comparison.png){#fig-ablation width=72%}
 
@@ -389,15 +386,7 @@ The **Synthetic Learner Profiles** page uses the synthetic personas to demonstra
 
 The **Graphs and Results** page displays the exported graphs from the notebooks, including dataset distributions and evaluation visuals. This page makes the visual results easier to browse during presentation.
 
-The app uses real project files where available:
-
-| File or Directory | Use in Dashboard |
-|---|---|
-| `data/processed/processed_udemy_courses.csv` | Course catalog and recommendation input |
-| `data/synthetic_users.csv` | Synthetic persona demonstration |
-| `results/recommendation_examples/tfidf_knn_evaluation_examples.csv` | Algorithm comparison examples |
-| `results/evaluation/` | Overlap, runtime, ablation, and summary results |
-| `results/graphs/` | Presentation graphs |
+The app uses real project files where available. The processed course catalog supplies the recommendation input, the synthetic user file supports the persona demonstration, the saved recommendation examples support the algorithm comparison page, and the exported evaluation and graph folders provide the tables and figures shown in the dashboard.
 
 The dashboard also handles important input cases. It supports exact and partial course title matching, strips whitespace, lowercases input, warns on empty input, and explains that duplicate titles use the first matching course entry. The KNN sparse matrix is converted to CSR format so that row indexing works correctly during recommendation generation.
 
